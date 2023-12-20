@@ -171,7 +171,7 @@ async function kirimStokEmail(to, stockInfo) {
     service: "gmail",
     auth: {
       user: "heripanca33@gmail.com", // Replace with your Gmail email
-      pass: "tswf rulc edpd zdxo", // Replace with your Gmail password
+      pass: "sensor :)", // Replace with your Gmail password
     },
   });
 
