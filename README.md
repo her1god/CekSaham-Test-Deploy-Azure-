@@ -59,17 +59,25 @@ SahamSight Dashboard dikembangkan menggunakan teknologi canggih seperti Node.js,
 
 1. Clone repositori ke lokal Anda.
    ```
-   git clone https://github.com/username/repo.git
+   git clone https://github.com/21343050/FinalProject_CekSaham_UAS.git
    ```
 
 2. Install dependensi.
    ```
-   npm install
+   npm i express
+   npm i mongodb
+   npm i hbs
+   npm i nodemailer
+   npm i axios
+   npm i body-parser
+   npm i axios
+   npm i mongoose
+   npm i nodemon
    ```
 
 3. Jalankan aplikasi.
    ```
-   npm start
+   npm run start
    ```
 
 4. Buka browser dan akses [http://localhost:3000](http://localhost:3000).
