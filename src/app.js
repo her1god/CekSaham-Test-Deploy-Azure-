@@ -14,10 +14,10 @@ const Stock = require("../models/Stocks");
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Trust proxy - PENTING untuk Azure App Service
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+// COMMENT atau HAPUS trust proxy untuk HTTP
+// if (process.env.NODE_ENV === 'production') {
+//   app.set('trust proxy', 1);
+// }
 
 // Konfigurasi direktori
 const direktoriPublic = path.join(__dirname, "../public");
@@ -55,19 +55,21 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET || "default-secret-key",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: false, // Ubah jadi false
     store: MongoStore.create({
       mongoUrl: mongoURI,
-      touchAfter: 24 * 3600,
+      collectionName: 'sessions', // Tambahkan collection name
+      ttl: 24 * 60 * 60, // 1 hari dalam detik
     }),
-    proxy: true,
-    name: 'sessionId',
+    proxy: false, // UBAH JADI FALSE untuk HTTP
+    name: 'connect.sid', // Gunakan nama default
     cookie: { 
-      secure: false, // UBAH JADI FALSE untuk support HTTP
+      secure: false, // FALSE untuk HTTP
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 1 hari
       sameSite: 'lax',
       path: '/',
+      domain: undefined, // HILANGKAN domain restriction
     },
   })
 );
@@ -85,9 +87,16 @@ app.use((req, res, next) => {
 
 // Middleware untuk autentikasi
 function isAuthenticated(req, res, next) {
+  console.log("=== AUTH CHECK ===");
+  console.log("Session ID:", req.sessionID);
+  console.log("Session user:", req.session.user);
+  console.log("Session:", req.session);
+  
   if (req.session && req.session.user) {
+    console.log("✅ User authenticated:", req.session.user.email);
     return next();
   } else {
+    console.log("❌ Not authenticated, redirecting to login");
     req.flash('error_msg', 'Silakan login terlebih dahulu');
     res.redirect("/login");
   }
@@ -151,11 +160,42 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
+  console.log("=== LOGIN ATTEMPT ===");
+  console.log("Email:", email);
+  console.log("Host:", req.get('host'));
+  console.log("Protocol:", req.protocol);
+
   if (email === "admin@example.com" && password === "password123") {
+    // Set session
     req.session.user = { email };
-    req.flash('success_msg', 'Login berhasil!');
-    res.redirect("/");
+    
+    // PENTING: Regenerate session ID untuk keamanan
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("Session regenerate error:", err);
+        return res.status(500).send("Session error");
+      }
+      
+      // Set user lagi setelah regenerate
+      req.session.user = { email };
+      
+      // Force save session
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("Session save error:", saveErr);
+          return res.status(500).send("Session save error");
+        }
+        
+        console.log("✅ Login successful");
+        console.log("Session ID:", req.sessionID);
+        console.log("Session user:", req.session.user);
+        
+        req.flash('success_msg', 'Login berhasil!');
+        res.redirect("/");
+      });
+    });
   } else {
+    console.log("❌ Wrong credentials");
     req.flash('error_msg', 'Email atau password salah');
     res.redirect("/login");
   }
