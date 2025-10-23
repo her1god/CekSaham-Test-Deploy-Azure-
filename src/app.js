@@ -7,8 +7,8 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const session = require("express-session");
+const MongoStore = require('connect-mongo'); // Tambahkan ini
 const flash = require("connect-flash");
-const MongoStore = require("connect-mongo"); // Import MongoStore
 const Stock = require("../models/Stocks");
 
 const app = express();
@@ -29,7 +29,23 @@ app.use(express.static(direktoriPublic));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Session middleware
+// Koneksi MongoDB HARUS sebelum session
+const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/stocksdb";
+console.log("Connecting to MongoDB...");
+mongoose
+  .connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("MongoDB connected successfully");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
+  });
+
+// Session middleware dengan MongoStore
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "default-secret-key",
@@ -37,14 +53,13 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: mongoURI,
-      touchAfter: 24 * 3600,
+      touchAfter: 24 * 3600, // Update session sekali per 24 jam (kecuali ada perubahan)
     }),
     cookie: { 
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production', // Auto true di production
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'none', // Ubah ke 'none' untuk cross-domain
-      // domain tidak perlu di-set (auto detect)
+      sameSite: 'lax'
     },
   })
 );
@@ -59,22 +74,6 @@ app.use((req, res, next) => {
   res.locals.user = req.session.user;
   next();
 });
-
-// Koneksi MongoDB
-const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/stocksdb";
-console.log("Connecting to MongoDB..."); // Debug log
-mongoose
-  .connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("MongoDB connected successfully");
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
-    process.exit(1); // Exit jika MongoDB gagal connect
-  });
 
 // Middleware untuk autentikasi
 function isAuthenticated(req, res, next) {
