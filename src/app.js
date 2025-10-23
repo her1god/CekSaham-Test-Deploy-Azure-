@@ -6,18 +6,14 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
 const mongoose = require("mongoose");
-const session = require("express-session");
-const MongoStore = require('connect-mongo');
-const flash = require("connect-flash");
+const jwt = require("jsonwebtoken"); // TAMBAH INI
 const Stock = require("../models/Stocks");
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-// COMMENT atau HAPUS trust proxy untuk HTTP
-// if (process.env.NODE_ENV === 'production') {
-//   app.set('trust proxy', 1);
-// }
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-jwt-key-12345";
 
 // Konfigurasi direktori
 const direktoriPublic = path.join(__dirname, "../public");
@@ -36,120 +32,95 @@ app.use(bodyParser.json());
 
 // Koneksi MongoDB
 const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/stocksdb";
-console.log("Connecting to MongoDB...");
 mongoose
   .connect(mongoURI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => {
-    console.log("MongoDB connected successfully");
-  })
+  .then(() => console.log("MongoDB connected"))
   .catch((err) => {
-    console.error("MongoDB connection error:", err);
+    console.error("MongoDB error:", err);
     process.exit(1);
   });
 
-// Middleware untuk set cookie domain dinamis
-app.use((req, res, next) => {
-  const host = req.get('host');
-  console.log('Request host:', host);
-  
-  // Extract base domain (tanpa subdomain)
-  let domain;
-  if (host.includes('her1godblog.tech')) {
-    domain = '.her1godblog.tech';
-  } else if (host.includes('her1god.codes')) {
-    domain = '.her1god.codes';
-  } else if (host.includes('azurewebsites.net')) {
-    domain = undefined; // Default Azure domain
-  } else {
-    domain = undefined; // Localhost atau domain lain
-  }
-  
-  // Override session cookie domain
-  if (req.session && domain) {
-    req.session.cookie.domain = domain;
-  }
-  
-  next();
-});
+// HAPUS SEMUA SESSION CODE (session, MongoStore, flash)
 
-// Session middleware (taruh SEBELUM middleware di atas)
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "default-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: mongoURI,
-      collectionName: 'sessions',
-      ttl: 24 * 60 * 60,
-    }),
-    proxy: false,
-    name: 'connect.sid',
-    cookie: { 
-      secure: false,
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
-      path: '/',
-      domain: undefined, // Will be set by middleware
-    },
-  })
-);
+// Middleware untuk parse cookie
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 
-// Middleware dinamis domain (taruh SETELAH session middleware)
-app.use((req, res, next) => {
-  const host = req.get('host');
-  console.log('Request host:', host);
-  
-  let domain;
-  if (host.includes('her1godblog.tech')) {
-    domain = '.her1godblog.tech';
-  } else if (host.includes('her1god.codes')) {
-    domain = '.her1god.codes';
-  }
-  
-  if (req.session && domain) {
-    req.session.cookie.domain = domain;
-    console.log('Cookie domain set to:', domain);
-  }
-  
-  next();
-});
-
-// Flash messages middleware
-app.use(flash());
-
-// Middleware untuk pass flash messages ke semua views
-app.use((req, res, next) => {
-  res.locals.success_msg = req.flash('success_msg');
-  res.locals.error_msg = req.flash('error_msg');
-  res.locals.user = req.session.user;
-  next();
-});
-
-// Middleware untuk autentikasi
+// Middleware untuk autentikasi dengan JWT
 function isAuthenticated(req, res, next) {
-  console.log("=== AUTH CHECK ===");
-  console.log("Session ID:", req.sessionID);
-  console.log("Session user:", req.session.user);
-  console.log("Session:", req.session);
+  const token = req.cookies.auth_token;
   
-  if (req.session && req.session.user) {
-    console.log("✅ User authenticated:", req.session.user.email);
-    return next();
-  } else {
-    console.log("❌ Not authenticated, redirecting to login");
-    req.flash('error_msg', 'Silakan login terlebih dahulu');
+  console.log("=== AUTH CHECK ===");
+  console.log("Token:", token ? "EXISTS" : "NOT FOUND");
+  
+  if (!token) {
+    console.log("❌ No token, redirect to login");
+    return res.redirect("/login");
+  }
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    console.log("✅ User authenticated:", decoded.email);
+    next();
+  } catch (err) {
+    console.log("❌ Invalid token:", err.message);
+    res.clearCookie('auth_token');
     res.redirect("/login");
   }
 }
 
 // Routes
 
-// Halaman awal
+// Halaman login
+app.get("/login", (req, res) => {
+  res.render("login", { judul: "Halaman Login" });
+});
+
+// Proses login
+app.post("/login", (req, res) => {
+  const { email, password } = req.body;
+
+  console.log("=== LOGIN ATTEMPT ===");
+  console.log("Email:", email);
+  console.log("Host:", req.get('host'));
+
+  if (email === "admin@example.com" && password === "password123") {
+    // Generate JWT token
+    const token = jwt.sign(
+      { email: email },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Set cookie dengan token
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: false, // false untuk HTTP
+      maxAge: 24 * 60 * 60 * 1000, // 24 jam
+      sameSite: 'lax',
+    });
+    
+    console.log("✅ Login successful");
+    console.log("Token generated:", token.substring(0, 20) + "...");
+    
+    res.redirect("/");
+  } else {
+    console.log("❌ Wrong credentials");
+    res.redirect("/login?error=1");
+  }
+});
+
+// Logout
+app.get("/logout", (req, res) => {
+  res.clearCookie('auth_token');
+  res.redirect("/login");
+});
+
+// Halaman home (protected)
 app.get("", isAuthenticated, async (req, res) => {
   try {
     const apiKey = process.env.GOAPI_API_KEY || "f46158fb-3cf7-5a89-ada2-c4b52118";
@@ -158,16 +129,7 @@ app.get("", isAuthenticated, async (req, res) => {
     );
 
     const dataResults = apiResponse.data.data.results;
-    if (!dataResults) {
-      throw new Error("Data tidak ditemukan dalam respons API.");
-    }
-
     const companies = dataResults;
-
-    if (!Array.isArray(companies)) {
-      throw new Error("Data perusahaan tidak dalam format array yang diharapkan.");
-    }
-
     const totalCount = companies.length;
     const top25Companies = companies.slice(0, 25);
 
@@ -181,92 +143,11 @@ app.get("", isAuthenticated, async (req, res) => {
       judul: "Halaman Home",
       companies: companyData,
       totalCount,
+      user: req.user, // Pass user dari JWT
     });
   } catch (error) {
-    console.error("Terjadi kesalahan saat mengambil data perusahaan:", error);
-    req.flash('error_msg', 'Gagal mengambil data perusahaan');
-    res.render("error", { 
-      pesanKesalahan: "Gagal mengambil data perusahaan"
-    });
-  }
-});
-
-// Route login (halaman login)
-app.get("/login", (req, res) => {
-  if (req.session && req.session.user) {
-    return res.redirect("/");
-  }
-  res.render("login", {
-    judul: "Halaman Login",
-  });
-});
-
-// Route login (proses login)
-app.post("/login", (req, res) => {
-  const { email, password } = req.body;
-
-  console.log("=== LOGIN ATTEMPT ===");
-  console.log("Email:", email);
-  console.log("Host:", req.get('host'));
-  console.log("Protocol:", req.protocol);
-
-  if (email === "admin@example.com" && password === "password123") {
-    // Set session
-    req.session.user = { email };
-    
-    // PENTING: Regenerate session ID untuk keamanan
-    req.session.regenerate((err) => {
-      if (err) {
-        console.error("Session regenerate error:", err);
-        return res.status(500).send("Session error");
-      }
-      
-      // Set user lagi setelah regenerate
-      req.session.user = { email };
-      
-      // Force save session
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error("Session save error:", saveErr);
-          return res.status(500).send("Session save error");
-        }
-        
-        console.log("✅ Login successful");
-        console.log("Session ID:", req.sessionID);
-        console.log("Session user:", req.session.user);
-        
-        req.flash('success_msg', 'Login berhasil!');
-        res.redirect("/");
-      });
-    });
-  } else {
-    console.log("❌ Wrong credentials");
-    req.flash('error_msg', 'Email atau password salah');
-    res.redirect("/login");
-  }
-});
-
-// Route logout
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/login");
-  });
-});
-
-// Protected routes
-app.get("/hasilSimpan-stok", isAuthenticated, async (req, res) => {
-  try {
-    const simpanStok = await Stock.find();
-    res.render("hasilSimpan-stok", {
-      judul: "Halaman Hasil Simpan Stok",
-      simpanStok,
-    });
-  } catch (error) {
-    console.error("Error retrieving saved stocks:", error);
-    req.flash('error_msg', 'Gagal mengambil data stok');
-    res.render("error", {
-      pesanKesalahan: "Error retrieving saved stocks"
-    });
+    console.error("Error:", error);
+    res.render("error", { pesanKesalahan: "Gagal mengambil data" });
   }
 });
 

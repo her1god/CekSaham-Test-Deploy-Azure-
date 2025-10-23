@@ -16,11 +16,13 @@
     "body-parser": "^1.20.2",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^5.1.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-session": "^1.18.2",
     "handlebars-helper-json": "^1.0.0",
     "hbs": "^4.2.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "nodemailer": "^6.9.7",
     "nodemon": "^3.1.10"
