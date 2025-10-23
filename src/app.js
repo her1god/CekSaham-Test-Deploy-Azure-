@@ -7,12 +7,17 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const session = require("express-session");
-const MongoStore = require('connect-mongo'); // Tambahkan ini
+const MongoStore = require('connect-mongo');
 const flash = require("connect-flash");
 const Stock = require("../models/Stocks");
 
 const app = express();
-const port = process.env.PORT || 8080; // Azure default port
+const port = process.env.PORT || 8080;
+
+// Trust proxy - PENTING untuk Azure App Service
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // Konfigurasi direktori
 const direktoriPublic = path.join(__dirname, "../public");
@@ -29,7 +34,7 @@ app.use(express.static(direktoriPublic));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Koneksi MongoDB HARUS sebelum session
+// Koneksi MongoDB
 const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/stocksdb";
 console.log("Connecting to MongoDB...");
 mongoose
@@ -53,13 +58,14 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: mongoURI,
-      touchAfter: 24 * 3600, // Update session sekali per 24 jam (kecuali ada perubahan)
+      touchAfter: 24 * 3600,
     }),
+    proxy: true, // Penting untuk Azure
     cookie: { 
-      secure: process.env.NODE_ENV === 'production', // Auto true di production
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'lax'
+      sameSite: 'strict', // Atau gunakan 'none' jika strict tidak jalan
     },
   })
 );
@@ -281,5 +287,5 @@ app.get("*", (req, res) => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server berjalan di port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`MongoDB URI: ${mongoURI.substring(0, 20)}...`); // Debug (sebagian)
+  console.log(`MongoDB URI: ${mongoURI.substring(0, 20)}...`);
 });
