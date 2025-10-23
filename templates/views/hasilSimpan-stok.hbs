@@ -30,6 +30,32 @@
   <!-- Template Main CSS File -->
   <link href="/css/style.css" rel="stylesheet" />
 </head>
+<script>
+  // Auto append token ke semua link dan form
+  document.addEventListener('DOMContentLoaded', function() {
+    const token = '{{token}}';
+    
+    if (token) {
+      // Append token ke semua link
+      document.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && !href.includes('token=') && !href.startsWith('#')) {
+          const separator = href.includes('?') ? '&' : '?';
+          link.setAttribute('href', href + separator + 'token=' + token);
+        }
+      });
+      
+      // Append token ke semua form
+      document.querySelectorAll('form').forEach(form => {
+        const action = form.getAttribute('action');
+        if (action && !action.includes('token=')) {
+          const separator = action.includes('?') ? '&' : '?';
+          form.setAttribute('action', action + separator + 'token=' + token);
+        }
+      });
+    }
+  });
+</script>
 
 <body>
   {{> messages}}
@@ -46,7 +72,7 @@
     </div><!-- End Logo -->
 
     <div class="search-bar">
-      <form class="search-form d-flex align-items-center" method="GET" action="/search">
+      <form class="search-form d-flex align-items-center" method="GET" action="/search?token={{token}}">
         <input type="text" name="search" placeholder="Cari dengan 4 kode saham" />
         <!-- Tambahkan elemen dropdown/select -->
         <select id="tipeCari" class="search-form d-flex align-items-center" name="tipeCari">
@@ -120,7 +146,7 @@
       <li>
         {{name}}
         ({{symbol}})
-        <form action="/hapus-stok/{{_id}}" method="post">
+        <form action="/hapus-stok/{{this._id}}?token={{../token}}" method="post">
           <button type="submit" class="btn btn-danger">Hapus</button>
         </form>
       </li>

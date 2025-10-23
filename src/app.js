@@ -51,10 +51,13 @@ app.use(cookieParser());
 
 // Middleware untuk autentikasi dengan JWT
 function isAuthenticated(req, res, next) {
-  const token = req.cookies.auth_token;
+  // Cek token dari cookie ATAU query parameter
+  let token = req.cookies.auth_token || req.query.token;
   
   console.log("=== AUTH CHECK ===");
-  console.log("Token:", token ? "EXISTS" : "NOT FOUND");
+  console.log("Token from cookie:", req.cookies.auth_token ? "EXISTS" : "NOT FOUND");
+  console.log("Token from query:", req.query.token ? "EXISTS" : "NOT FOUND");
+  console.log("Host:", req.get('host'));
   
   if (!token) {
     console.log("❌ No token, redirect to login");
@@ -64,6 +67,7 @@ function isAuthenticated(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    req.token = token; // Simpan token untuk dipakai di view
     console.log("✅ User authenticated:", decoded.email);
     next();
   } catch (err) {
@@ -96,18 +100,19 @@ app.post("/login", (req, res) => {
       { expiresIn: '24h' }
     );
     
-    // Set cookie dengan token
+    // Coba set cookie (mungkin tidak jalan)
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: false, // false untuk HTTP
-      maxAge: 24 * 60 * 60 * 1000, // 24 jam
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax',
     });
     
     console.log("✅ Login successful");
     console.log("Token generated:", token.substring(0, 20) + "...");
     
-    res.redirect("/");
+    // Redirect dengan token di URL
+    res.redirect("/?token=" + token);
   } else {
     console.log("❌ Wrong credentials");
     res.redirect("/login?error=1");
@@ -143,7 +148,8 @@ app.get("", isAuthenticated, async (req, res) => {
       judul: "Halaman Home",
       companies: companyData,
       totalCount,
-      user: req.user, // Pass user dari JWT
+      user: req.user,
+      token: req.token, // Pass token ke view
     });
   } catch (error) {
     console.error("Error:", error);
@@ -152,7 +158,15 @@ app.get("", isAuthenticated, async (req, res) => {
 });
 
 // Route search
-app.get("/search", isAuthenticated, async (req, res) => {
+app.get("/search", isAuthenticated, (req, res) => {
+  res.render("search", { 
+    judul: "Halaman Search",
+    user: req.user,
+    token: req.token // Pass token
+  });
+});
+
+app.post("/search", isAuthenticated, async (req, res) => {
   const kolomCari = req.query.search;
   const tipeCari = req.query.tipeCari?.toLowerCase();
 
@@ -195,19 +209,34 @@ app.get("/search", isAuthenticated, async (req, res) => {
   }
 });
 
+// Route hasil simpan stok
+app.get("/hasilSimpan-stok", isAuthenticated, async (req, res) => {
+  try {
+    const simpanStok = await Stock.find();
+    res.render("hasilSimpan-stok", {
+      judul: "Halaman Hasil Simpan Stok",
+      simpanStok,
+      user: req.user,
+      token: req.token, // Pass token
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.render("error", { pesanKesalahan: "Error retrieving saved stocks" });
+  }
+});
+
 // Route simpan stok
 app.post("/simpan-stok", isAuthenticated, async (req, res) => {
   const { symbol, name, logo } = req.body;
+  const token = req.token;
 
   try {
     // Cek apakah symbol sudah ada di database
     const existingStock = await Stock.findOne({ symbol });
 
     if (existingStock) {
-      console.log("DUPLICATE DETECTED:", symbol); // Debug log
-      req.flash('error_msg', `Stock dengan symbol "${symbol}" sudah tersimpan sebelumnya`);
-      console.log("Flash error_msg set:", req.flash('error_msg')); // Debug log
-      return res.redirect("/hasilSimpan-stok");
+      console.log("DUPLICATE DETECTED:", symbol);
+      return res.redirect("/hasilSimpan-stok?token=" + token);
     }
 
     const newStock = new Stock({
@@ -217,29 +246,27 @@ app.post("/simpan-stok", isAuthenticated, async (req, res) => {
     });
 
     await newStock.save();
-    console.log("STOCK SAVED:", symbol); // Debug log
-    req.flash('success_msg', `Stock ${symbol} berhasil disimpan!`);
-    console.log("Flash success_msg set:", req.flash('success_msg')); // Debug log
-    res.redirect("/hasilSimpan-stok");
+    console.log("STOCK SAVED:", symbol);
+    
+    res.redirect("/hasilSimpan-stok?token=" + token);
   } catch (error) {
     console.error("Error saving stock:", error);
-    req.flash('error_msg', 'Gagal menyimpan stock');
-    res.redirect("/hasilSimpan-stok");
+    res.redirect("/hasilSimpan-stok?token=" + token);
   }
 });
 
 // Route hapus stok
 app.post("/hapus-stok/:id", isAuthenticated, async (req, res) => {
-  const stockId = req.params.id;
+  const { id } = req.params;
+  const token = req.token;
 
   try {
-    await Stock.findByIdAndDelete(stockId);
-    req.flash('success_msg', 'Stock berhasil dihapus');
-    res.redirect("/hasilSimpan-stok");
+    await Stock.findByIdAndDelete(id);
+    console.log("Stock deleted:", id);
+    res.redirect("/hasilSimpan-stok?token=" + token);
   } catch (error) {
     console.error("Error deleting stock:", error);
-    req.flash('error_msg', 'Gagal menghapus stock');
-    res.redirect("/hasilSimpan-stok");
+    res.redirect("/hasilSimpan-stok?token=" + token);
   }
 });
 
