@@ -72,13 +72,13 @@
     </div><!-- End Logo -->
 
     <div class="search-bar">
-      <form class="search-form d-flex align-items-center" method="GET" action="/search?token={{token}}">
-        <input type="text" name="search" placeholder="Cari dengan 4 kode saham" />
-        <!-- Tambahkan elemen dropdown/select -->
-        <select id="tipeCari" class="search-form d-flex align-items-center" name="tipeCari">
+      <form class="search-form d-flex align-items-center" method="GET" action="/search">
+        <input type="text" name="search" placeholder="Cari dengan 4 kode saham" required />
+        <select id="tipeCari" class="search-form d-flex align-items-centers" name="tipeCari">
           <option value="company">Informasi Perusahaan</option>
           <option value="stock">Naik Turun Harga Saham</option>
         </select>
+        <input type="hidden" name="token" value="{{token}}" />
         <button type="submit"><i class="bi bi-search"></i></button>
       </form>
     </div><!-- End Search Bar -->

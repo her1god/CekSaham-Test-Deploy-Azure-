@@ -72,13 +72,14 @@
     </div><!-- End Logo -->
 
     <div class="search-bar">
-      <form class="search-form d-flex align-items-center" method="GET" action="/search?token={{token}}">
-        <input type="text" name="search" placeholder="Cari dengan 4 kode saham" />
-        <!-- Tambahkan elemen dropdown/select -->
+      <form class="search-form d-flex align-items-center" method="GET" action="/search">
+        <input type="text" name="search" placeholder="Cari dengan 4 kode saham" required />
         <select id="tipeCari" class="search-form d-flex align-items-center" name="tipeCari">
           <option value="company">Informasi Perusahaan</option>
           <option value="stock">Naik Turun Harga Saham</option>
         </select>
+        <!-- TAMBAHKAN HIDDEN INPUT TOKEN -->
+        <input type="hidden" name="token" value="{{token}}" />
         <button type="submit"><i class="bi bi-search"></i></button>
       </form>
     </div><!-- End Search Bar -->
@@ -114,51 +115,184 @@
 
   <main id="main" class="main">
 
-    <div class="pagetitle">
-      <h1>Stock Info</h1>
-      <nav>
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a href="/">Home</a></li>
-          <li class="breadcrumb-item active">Stock Info</li>
-        </ol>
-      </nav>
-    </div><!-- End Page Title -->
-    <!-- templates/stock-info.hbs -->
-    {{#if stockInfo.results.length}}
-    <ul>
-      {{#each stockInfo.results}}
-      <li>
-        Symbol: {{symbol}}
-        <br>
-        Tanggal: {{date}}
-        <br>
-        Open: {{open}}
-        <br>
-        High: {{high}}
-        <br>
-        Low: {{low}}
-        <br>
-        Close: {{close}}
-        <br>
-        Volume: {{volume}}
-        <br>
+  <div class="pagetitle">
+    <h1>Stock Info</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active">Stock Info</li>
+      </ol>
+    </nav>
+  </div><!-- End Page Title -->
 
-        <!-- Tampilkan informasi perusahaan -->
-        {{#if company}}
-        Perusahaan: {{company.name}} ({{company.symbol}})
-        <br>
-        Logo: <img src="{{company.logo}}" alt="{{company.name}} Logo" style="width: 100px; height: auto;">
-        {{/if}}
-      </li>
-      {{/each}}
-    </ul>
-    {{else}}
-    <p>Tidak ada informasi naik turun harga saham yang cocok.</p>
+  <!-- ERROR HANDLING -->
+  {{#if error}}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      <strong>Error:</strong> {{error}}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <a href="/?token={{token}}" class="btn btn-primary">
+      <i class="bi bi-arrow-left"></i> Kembali ke Home
+    </a>
+  {{/if}}
+
+  <!-- COMPANY DETAIL SECTION -->
+  {{#unless error}}
+    {{#if companyDetail}}
+    <section class="section">
+      <div class="row">
+        <div class="col-lg-12">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Detail Perusahaan: {{companyDetail.symbol}}</h5>
+              
+              <div class="row">
+                <div class="col-md-3 text-center">
+                  {{#if companyDetail.logo}}
+                    <img src="{{companyDetail.logo}}" alt="{{companyDetail.name}}" class="img-fluid" style="max-width: 150px;">
+                  {{/if}}
+                </div>
+                <div class="col-md-9">
+                  <table class="table table-borderless">
+                    <tbody>
+                      <tr>
+                        <th style="width: 200px;">Nama Perusahaan:</th>
+                        <td>{{companyDetail.name}}</td>
+                      </tr>
+                      <tr>
+                        <th>Symbol:</th>
+                        <td>{{companyDetail.symbol}}</td>
+                      </tr>
+                      {{#if companyDetail.address}}
+                      <tr>
+                        <th>Alamat:</th>
+                        <td>{{companyDetail.address}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.phone}}
+                      <tr>
+                        <th>Telepon:</th>
+                        <td>{{companyDetail.phone}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.fax}}
+                      <tr>
+                        <th>Faks:</th>
+                        <td>{{companyDetail.fax}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.npwp}}
+                      <tr>
+                        <th>NPWP:</th>
+                        <td>{{companyDetail.npwp}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.email}}
+                      <tr>
+                        <th>Email:</th>
+                        <td><a href="mailto:{{companyDetail.email}}">{{companyDetail.email}}</a></td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.website}}
+                      <tr>
+                        <th>Website:</th>
+                        <td><a href="{{companyDetail.website}}" target="_blank">{{companyDetail.website}}</a></td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.sector}}
+                      <tr>
+                        <th>Sektor:</th>
+                        <td>{{companyDetail.sector}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.subsector}}
+                      <tr>
+                        <th>Sub Sektor:</th>
+                        <td>{{companyDetail.subsector}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.industry}}
+                      <tr>
+                        <th>Industri:</th>
+                        <td>{{companyDetail.industry}}</td>
+                      </tr>
+                      {{/if}}
+                      {{#if companyDetail.subindustry}}
+                      <tr>
+                        <th>Sub Industri:</th>
+                        <td>{{companyDetail.subindustry}}</td>
+                      </tr>
+                      {{/if}}
+                    </tbody>
+                  </table>
+                  
+                  {{#if companyDetail.description}}
+                  <div class="mt-3">
+                    <h6><strong>About:</strong></h6>
+                    <p>{{companyDetail.description}}</p>
+                  </div>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
     {{/if}}
 
-    <a href="/">Kembali ke Daftar Perusahaan</a>
+    <!-- STOCK PRICES SECTION -->
+    {{#if stockInfo.results.length}}
+    <section class="section">
+      <div class="row">
+        <div class="col-lg-12">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Riwayat Harga Saham: {{searchTerm}}</h5>
+              
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{#each stockInfo.results}}
+                  <tr>
+                    <td>{{date}}</td>
+                    <td>Rp {{open}}</td>
+                    <td>Rp {{high}}</td>
+                    <td>Rp {{low}}</td>
+                    <td>Rp {{close}}</td>
+                    <td>{{volume}}</td>
+                  </tr>
+                  {{/each}}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    {{else}}
+    <div class="alert alert-warning" role="alert">
+      <i class="bi bi-exclamation-circle me-1"></i>
+      Tidak ada riwayat harga saham untuk symbol: <strong>{{searchTerm}}</strong>
+    </div>
+    {{/if}}
 
-  </main><!-- End #main -->
+    <a href="/?token={{token}}" class="btn btn-secondary mt-3">
+      <i class="bi bi-arrow-left"></i> Kembali ke Home
+    </a>
+  {{/unless}}
+
+</main><!-- End #main -->
 
   <!-- ======= Footer ======= -->
   <footer id="footer" class="footer">

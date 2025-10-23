@@ -174,51 +174,151 @@ app.get("/search", isAuthenticated, async (req, res) => {
     const apiKey = process.env.GOAPI_API_KEY || "f46158fb-3cf7-5a89-ada2-c4b52118";
 
     if (tipeCari === "company") {
-      // Cari detail perusahaan
-      const response = await axios.get(
-        `https://api.goapi.io/stock/idx/companies?symbols=${search}&api_key=${apiKey}`
-      );
+      // PAKAI ENDPOINT PROFILE untuk detail perusahaan
+      console.log("Fetching company profile for:", search.toUpperCase());
+      
+      try {
+        const response = await axios.get(
+          `https://api.goapi.io/stock/idx/${search.toUpperCase()}/profile?api_key=${apiKey}`
+        );
 
-      if (response.data.data.results && response.data.data.results.length > 0) {
-        const companyDetail = response.data.data.results[0];
-        return res.render("detail", {
-          judul: "Detail Perusahaan",
-          companyDetail,
-          user: req.user,
-          token: token,
-        });
-      } else {
+        console.log("=== API PROFILE RESPONSE ===");
+        console.log("Status:", response.status);
+        console.log("Data received:", response.data ? "YES" : "NO");
+
+        if (response.data && response.data.data) {
+          const companyDetail = response.data.data;
+          
+          console.log("=== COMPANY DATA ===");
+          console.log("Symbol:", companyDetail.symbol);
+          console.log("Name:", companyDetail.name);
+          console.log("Address:", companyDetail.address);
+          console.log("Phone:", companyDetail.phone);
+          console.log("Email:", companyDetail.email);
+          console.log("Website:", companyDetail.website);
+          console.log("IPO Listing Date:", companyDetail.ipo_listing_date);
+          console.log("IPO Securities Administration Bureau:", companyDetail.ipo_securities_administration_bureau);
+          console.log("Status:", companyDetail.status);
+          console.log("Address:", companyDetail.address);
+          console.log("Full data keys:", Object.keys(companyDetail));
+          
+          return res.render("detail", {
+            judul: "Detail Perusahaan",
+            companyDetail: companyDetail,
+            user: req.user,
+            token: token,
+          });
+        } else {
+          console.log("No data in response");
+          
+          return res.render("detail", {
+            judul: "Detail Perusahaan",
+            companyDetail: null,
+            error: `Data perusahaan untuk symbol "${search.toUpperCase()}" tidak ditemukan`,
+            user: req.user,
+            token: token,
+          });
+        }
+      } catch (profileError) {
+        console.error("Profile API error:", profileError.message);
+        console.error("Status code:", profileError.response?.status);
+        
+        // Jika 404, berarti symbol tidak ada
+        if (profileError.response?.status === 404) {
+          return res.render("detail", {
+            judul: "Detail Perusahaan",
+            companyDetail: null,
+            error: `Perusahaan dengan symbol "${search.toUpperCase()}" tidak ditemukan`,
+            user: req.user,
+            token: token,
+          });
+        }
+        
         return res.render("detail", {
           judul: "Detail Perusahaan",
           companyDetail: null,
+          error: "Error saat mengambil data: " + profileError.message,
           user: req.user,
           token: token,
         });
       }
+      
     } else if (tipeCari === "stock") {
       // Cari info naik turun harga saham
-      const response = await axios.get(
-        `https://api.goapi.io/stock/idx/prices?symbols=${search}&api_key=${apiKey}`
-      );
+      console.log("Fetching stock prices for:", search.toUpperCase());
+      
+      try {
+        const pricesResponse = await axios.get(
+          `https://api.goapi.io/stock/idx/prices?symbols=${search.toUpperCase()}&api_key=${apiKey}`
+        );
 
-      const stockInfo = response.data.data;
+        console.log("Stock prices received:", pricesResponse.data.data ? "YES" : "NO");
 
-      return res.render("info-stok", {
-        judul: "Info Naik Turun Harga Saham",
-        stockInfo,
+        const stockInfo = pricesResponse.data.data;
+
+        // FETCH COMPANY DETAIL dari PROFILE endpoint
+        let companyDetail = null;
+        try {
+          const profileResponse = await axios.get(
+            `https://api.goapi.io/stock/idx/${search.toUpperCase()}/profile?api_key=${apiKey}`
+          );
+
+          if (profileResponse.data && profileResponse.data.data) {
+            companyDetail = profileResponse.data.data;
+            console.log("Company profile found:", companyDetail.name);
+            console.log("Full profile keys:", Object.keys(companyDetail));
+          }
+        } catch (profileError) {
+          console.error("Error fetching company profile:", profileError.message);
+        }
+
+        return res.render("info-stok", {
+          judul: "Info Naik Turun Harga Saham",
+          stockInfo,
+          companyDetail, // PASS COMPANY DETAIL dari profile
+          searchTerm: search.toUpperCase(),
+          user: req.user,
+          token: token,
+        });
+      } catch (pricesError) {
+        console.error("Prices API error:", pricesError.message);
+        
+        return res.render("info-stok", {
+          judul: "Info Naik Turun Harga Saham",
+          stockInfo: null,
+          companyDetail: null,
+          error: "Error: " + pricesError.message,
+          searchTerm: search.toUpperCase(),
+          user: req.user,
+          token: token,
+        });
+      }
+      
+    } else {
+      return res.redirect("/?token=" + token);
+    }
+    
+  } catch (error) {
+    console.error("Search error:", error.message);
+    
+    if (tipeCari === "company") {
+      return res.render("detail", {
+        judul: "Detail Perusahaan",
+        companyDetail: null,
+        error: "Error: " + error.message,
         user: req.user,
         token: token,
       });
     } else {
-      return res.redirect("/?token=" + token);
+      return res.render("info-stok", {
+        judul: "Info Naik Turun Harga Saham",
+        stockInfo: null,
+        error: "Error: " + error.message,
+        searchTerm: search.toUpperCase(),
+        user: req.user,
+        token: token,
+      });
     }
-  } catch (error) {
-    console.error("Search error:", error.message);
-    res.render("error", {
-      pesanKesalahan: "Error saat mencari data: " + error.message,
-      user: req.user,
-      token: token,
-    });
   }
 });
 
