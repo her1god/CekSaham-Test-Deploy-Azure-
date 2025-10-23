@@ -7,11 +7,11 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const session = require("express-session");
-const flash = require("connect-flash"); // Tambahkan ini
+const flash = require("connect-flash");
 const Stock = require("../models/Stocks");
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080; // Azure default port
 
 // Konfigurasi direktori
 const direktoriPublic = path.join(__dirname, "../public");
@@ -35,14 +35,14 @@ app.use(
     resave: false,
     saveUninitialized: true,
     cookie: { 
-      secure: false, // Set false dulu untuk development
+      secure: process.env.NODE_ENV === 'production', // true di production
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000
     },
   })
 );
 
-// Flash messages middleware (HARUS setelah session)
+// Flash messages middleware
 app.use(flash());
 
 // Middleware untuk pass flash messages ke semua views
@@ -55,6 +55,7 @@ app.use((req, res, next) => {
 
 // Koneksi MongoDB
 const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/stocksdb";
+console.log("Connecting to MongoDB..."); // Debug log
 mongoose
   .connect(mongoURI, {
     useNewUrlParser: true,
@@ -65,6 +66,7 @@ mongoose
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
+    process.exit(1); // Exit jika MongoDB gagal connect
   });
 
 // Middleware untuk autentikasi
@@ -270,6 +272,8 @@ app.get("*", (req, res) => {
 });
 
 // Start server
-app.listen(port, () => {
-  console.log(`Server berjalan di http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server berjalan di port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`MongoDB URI: ${mongoURI.substring(0, 20)}...`); // Debug (sebagian)
 });
