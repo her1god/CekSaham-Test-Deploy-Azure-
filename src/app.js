@@ -50,29 +50,74 @@ mongoose
     process.exit(1);
   });
 
-// Session middleware dengan MongoStore
+// Middleware untuk set cookie domain dinamis
+app.use((req, res, next) => {
+  const host = req.get('host');
+  console.log('Request host:', host);
+  
+  // Extract base domain (tanpa subdomain)
+  let domain;
+  if (host.includes('her1godblog.tech')) {
+    domain = '.her1godblog.tech';
+  } else if (host.includes('her1god.codes')) {
+    domain = '.her1god.codes';
+  } else if (host.includes('azurewebsites.net')) {
+    domain = undefined; // Default Azure domain
+  } else {
+    domain = undefined; // Localhost atau domain lain
+  }
+  
+  // Override session cookie domain
+  if (req.session && domain) {
+    req.session.cookie.domain = domain;
+  }
+  
+  next();
+});
+
+// Session middleware (taruh SEBELUM middleware di atas)
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "default-secret-key",
     resave: false,
-    saveUninitialized: false, // Ubah jadi false
+    saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: mongoURI,
-      collectionName: 'sessions', // Tambahkan collection name
-      ttl: 24 * 60 * 60, // 1 hari dalam detik
+      collectionName: 'sessions',
+      ttl: 24 * 60 * 60,
     }),
-    proxy: false, // UBAH JADI FALSE untuk HTTP
-    name: 'connect.sid', // Gunakan nama default
+    proxy: false,
+    name: 'connect.sid',
     cookie: { 
-      secure: false, // FALSE untuk HTTP
+      secure: false,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 1 hari
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax',
       path: '/',
-      domain: undefined, // HILANGKAN domain restriction
+      domain: undefined, // Will be set by middleware
     },
   })
 );
+
+// Middleware dinamis domain (taruh SETELAH session middleware)
+app.use((req, res, next) => {
+  const host = req.get('host');
+  console.log('Request host:', host);
+  
+  let domain;
+  if (host.includes('her1godblog.tech')) {
+    domain = '.her1godblog.tech';
+  } else if (host.includes('her1god.codes')) {
+    domain = '.her1god.codes';
+  }
+  
+  if (req.session && domain) {
+    req.session.cookie.domain = domain;
+    console.log('Cookie domain set to:', domain);
+  }
+  
+  next();
+});
 
 // Flash messages middleware
 app.use(flash());
