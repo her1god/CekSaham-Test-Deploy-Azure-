@@ -8,6 +8,7 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const flash = require("connect-flash");
+const MongoStore = require("connect-mongo"); // Import MongoStore
 const Stock = require("../models/Stocks");
 
 const app = express();
@@ -33,12 +34,17 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET || "default-secret-key",
     resave: false,
-    saveUninitialized: false, // Ubah ke false
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: mongoURI,
+      touchAfter: 24 * 3600,
+    }),
     cookie: { 
-      secure: false, // Ubah ke false dulu untuk testing
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'lax' // Tambahkan ini
+      sameSite: 'none', // Ubah ke 'none' untuk cross-domain
+      // domain tidak perlu di-set (auto detect)
     },
   })
 );
