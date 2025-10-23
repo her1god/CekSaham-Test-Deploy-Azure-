@@ -33,11 +33,12 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET || "default-secret-key",
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false, // Ubah ke false
     cookie: { 
-      secure: process.env.NODE_ENV === 'production', // true di production
+      secure: false, // Ubah ke false dulu untuk testing
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax' // Tambahkan ini
     },
   })
 );
