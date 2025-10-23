@@ -32,6 +32,7 @@
 </head>
 
 <body>
+  {{> messages}}
 
   <!-- ======= Header ======= -->
   <header id="header" class="header fixed-top d-flex align-items-center">
@@ -48,7 +49,7 @@
       <form class="search-form d-flex align-items-center" method="GET" action="/search">
         <input type="text" name="search" placeholder="Cari dengan 4 kode saham" />
         <!-- Tambahkan elemen dropdown/select -->
-        <select id="searchType" class="search-form d-flex align-items-center" name="searchType">
+        <select id="tipeCari" class="search-form d-flex align-items-center" name="tipeCari">
           <option value="company">Informasi Perusahaan</option>
           <option value="stock">Naik Turun Harga Saham</option>
         </select>
@@ -56,15 +57,10 @@
       </form>
     </div><!-- End Search Bar -->
 
-    <nav class="header-nav ms-auto">
-
-      <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
-        <span class="d-none d-md-block dropdown-toggle ps-2">Admin</span>
-      </a><!-- End Profile Iamge Icon -->
-
-      </ul><!-- End Profile Dropdown Items -->
-      </li><!-- End Profile Nav -->
-    </nav><!-- End Icons Navigation -->
+      <nav class="header-nav ms-auto">
+          <span>Welcome, {{user.email}}</span>
+          <a href="/logout">Logout</a>
+      </nav><!-- End Icons Navigation -->
 
   </header><!-- End Header -->
 
@@ -107,8 +103,6 @@
       <input type="hidden" name="symbol" value="{{companyDetail.symbol}}" />
       <input type="hidden" name="name" value="{{companyDetail.name}}" />
       <input type="hidden" name="logo" value="{{companyDetail.logo}}" />
-      <label for="email">Email Penerima:</label>
-      <input type="email" name="email" required>
       <button class="btn btn-success" type="submit">Simpan Saham</button>
     </form>
 
