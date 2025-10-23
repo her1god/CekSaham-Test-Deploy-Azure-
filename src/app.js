@@ -60,12 +60,14 @@ app.use(
       mongoUrl: mongoURI,
       touchAfter: 24 * 3600,
     }),
-    proxy: true, // Penting untuk Azure
+    proxy: true,
+    name: 'sessionId',
     cookie: { 
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // UBAH JADI FALSE untuk support HTTP
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'strict', // Atau gunakan 'none' jika strict tidak jalan
+      sameSite: 'lax',
+      path: '/',
     },
   })
 );
