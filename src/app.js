@@ -157,55 +157,68 @@ app.get("", isAuthenticated, async (req, res) => {
   }
 });
 
-// Route search
-app.get("/search", isAuthenticated, (req, res) => {
-  res.render("search", { 
-    judul: "Halaman Search",
-    user: req.user,
-    token: req.token // Pass token
-  });
-});
+// Route search (langsung proses, tidak ada halaman search)
+app.get("/search", isAuthenticated, async (req, res) => {
+  const { search, tipeCari } = req.query;
+  const token = req.token;
 
-app.post("/search", isAuthenticated, async (req, res) => {
-  const kolomCari = req.query.search;
-  const tipeCari = req.query.tipeCari?.toLowerCase();
+  console.log("=== SEARCH ===");
+  console.log("Search term:", search);
+  console.log("Search type:", tipeCari);
 
-  if (!kolomCari || !tipeCari) {
-    req.flash('error_msg', 'Parameter pencarian tidak lengkap');
-    return res.redirect("/");
-  }
-
-  if (!["stock", "company"].includes(tipeCari)) {
-    req.flash('error_msg', 'Tipe pencarian tidak valid');
-    return res.redirect("/");
-  }
-
-  const apiKey = process.env.GOAPI_API_KEY || "f46158fb-3cf7-5a89-ada2-c4b52118";
-  let apiUrl;
-
-  if (tipeCari === "stock") {
-    apiUrl = `https://api.goapi.io/stock/idx/prices?symbols=${kolomCari}&api_key=${apiKey}`;
-  } else {
-    apiUrl = `https://api.goapi.io/stock/idx/${kolomCari}/profile?api_key=${apiKey}`;
+  if (!search || !tipeCari) {
+    return res.redirect("/?token=" + token);
   }
 
   try {
-    const apiResponse = await axios.get(apiUrl);
-    const dataCari = apiResponse.data.data;
+    const apiKey = process.env.GOAPI_API_KEY || "f46158fb-3cf7-5a89-ada2-c4b52118";
 
-    if (tipeCari === "stock") {
-      res.render("info-stok", {
-        stockInfo: dataCari,
+    if (tipeCari === "company") {
+      // Cari detail perusahaan
+      const response = await axios.get(
+        `https://api.goapi.io/stock/idx/companies?symbols=${search}&api_key=${apiKey}`
+      );
+
+      if (response.data.data.results && response.data.data.results.length > 0) {
+        const companyDetail = response.data.data.results[0];
+        return res.render("detail", {
+          judul: "Detail Perusahaan",
+          companyDetail,
+          user: req.user,
+          token: token,
+        });
+      } else {
+        return res.render("detail", {
+          judul: "Detail Perusahaan",
+          companyDetail: null,
+          user: req.user,
+          token: token,
+        });
+      }
+    } else if (tipeCari === "stock") {
+      // Cari info naik turun harga saham
+      const response = await axios.get(
+        `https://api.goapi.io/stock/idx/prices?symbols=${search}&api_key=${apiKey}`
+      );
+
+      const stockInfo = response.data.data;
+
+      return res.render("info-stok", {
+        judul: "Info Naik Turun Harga Saham",
+        stockInfo,
+        user: req.user,
+        token: token,
       });
     } else {
-      res.render("detail", {
-        companyDetail: dataCari,
-      });
+      return res.redirect("/?token=" + token);
     }
   } catch (error) {
-    console.error("Terjadi kesalahan saat mengambil data:", error);
-    req.flash('error_msg', 'Gagal mengambil data dari API');
-    res.redirect("/");
+    console.error("Search error:", error.message);
+    res.render("error", {
+      pesanKesalahan: "Error saat mencari data: " + error.message,
+      user: req.user,
+      token: token,
+    });
   }
 });
 
